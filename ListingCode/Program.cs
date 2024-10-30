@@ -1,4 +1,5 @@
-﻿using Xceed.Words.NET;
+﻿using Newtonsoft.Json;
+using Xceed.Words.NET;
 
 namespace ListingCode;
 
@@ -7,16 +8,15 @@ public class Listing
     private DocX? _document;
     private string? _code;
 
-    private string? _listingFileName = "OlodimPatriot.docx";
-    private string? _path = "C:\\Users\\Пользователь\\source\\repos\\Olodim_Patriot\\Olodim Patriot";
-
     private Files _businessLogic = new();
     private Files _helpers = new();
     private Files _models = new();
     private Files _userInterface = new();
 
-    private List<string?> _directories = [];
+    private Settings _settings = new();
+    private readonly JsonHelper _jsonHelper = new();
 
+    private List<string?> _directories = [];
     private List<string?> _allText = [];
 
     static void Main(string[] args)
@@ -27,21 +27,41 @@ public class Listing
 
     private void Initialize()
     {
+        GetSettings();
         GetFilesName();
 
-        _document = !File.Exists(_listingFileName) ? DocX.Create(_listingFileName) : DocX.Load(_listingFileName);
+        _document = !File.Exists(_settings.ListingFileName) ? DocX.Create(_settings.ListingFileName) : DocX.Load(_settings.ListingFileName);
 
         StartListing();
+    }
+
+    private void GetSettings()
+    {
+        var path = "Settings.json";
+        if (!File.Exists(path))
+        {
+            var settings = new Settings
+            {
+                ListingFileName = "",
+                PathToProject = ""
+            };
+            _jsonHelper.WriteJsonToFile(path, settings, false);
+        }
+
+        _settings = _jsonHelper.ReadJsonFromFile(path, _settings);
+
     }
 
     private void StartListing()
     {
         SetHyperlinkData(_businessLogic, "Business", "1.АЛГОРИТМ, БИЗНЕС-ЛОГИКА, ОСНОВНЫЕ КЛАССЫ (ФОРМЫ ОКНА)", 0, 1);
+        SetHyperlinkData(_userInterface, "Business", "", 21, 1);                                                       //Только если есть control с code behind
         SetHyperlinkData(_helpers, "Business", "2.ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИОНАЛЬНЫЕ КЛАССЫ", 0, 2);
         SetHyperlinkData(_models, "Business", "3.МОДЕЛИ ДАННЫХ (КЛАССЫ МОДЕЛИ ДАННЫХ)", 0, 3);
         SetHyperlinkData(_userInterface, "UI", "4.ПОЛЬЗОВАТЕЛЬСКИИ ИНТЕРФЕИС", 0, 4);
 
         SetListingFileData(_businessLogic, "Business", "1.АЛГОРИТМ, БИЗНЕС-ЛОГИКА, ОСНОВНЫЕ КЛАССЫ (ФОРМЫ ОКНА)", 0, 1);
+        SetListingFileData(_userInterface, "Business", "", 21, 1);                                                       //Только если есть control с code behind
         SetListingFileData(_helpers, "Business", "2.ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИОНАЛЬНЫЕ КЛАССЫ", 0, 2);
         SetListingFileData(_models, "Business", "3.МОДЕЛИ ДАННЫХ (КЛАССЫ МОДЕЛИ ДАННЫХ)", 0, 3);
         SetListingFileData(_userInterface, "UI", "4.ПОЛЬЗОВАТЕЛЬСКИИ ИНТЕРФЕИС", 0, 4);
@@ -55,21 +75,25 @@ public class Listing
         {
             case "UI":
                 _allText.Add(text);
+                _allText.Add(" ");
                 foreach (var uiText in fileModel.UIFilesName!
                              .Select(ui => Path.GetFileName(ui)))
                 {
                     number += 1;
                     _allText.Add(count + "." + number + " " + uiText);
+                    _allText.Add(" ");
                 }
 
                 break;
             case "Business":
                 _allText.Add(text);
+                _allText.Add(" ");
                 foreach (var businessText in fileModel.BusinessFilesName!
                              .Select(business => Path.GetFileName(business)))
                 {
                     number += 1;
                     _allText.Add(count + "." + number + " " + businessText);
+                    _allText.Add(" ");
                 }
 
                 break;
@@ -82,6 +106,7 @@ public class Listing
         {
             case "UI":
                 _allText.Add(text);
+                _allText.Add(" ");
                 foreach (var ui in fileModel.UIFilesName!)
                 {
                     var fileName = Path.GetFileName(ui);
@@ -90,13 +115,15 @@ public class Listing
 
                     _allText.Add(count + "." + number + " " + fileName);
                     number += 1;
-
+                    _allText.Add(" ");
                     _allText.Add(uiText);
+                    _allText.Add(" ");
                 }
 
                 break;
             case "Business":
                 _allText.Add(text);
+                _allText.Add(" ");
                 foreach (var ui in fileModel.BusinessFilesName!)
                 {
                     var fileName = Path.GetFileName(ui);
@@ -105,8 +132,9 @@ public class Listing
 
                     _allText.Add(count + "." +  number + " " + fileName);
                     number += 1;
-
+                    _allText.Add(" ");
                     _allText.Add(uiText);
+                    _allText.Add(" ");
                 }
 
                 break;
@@ -130,7 +158,7 @@ public class Listing
 
     private void GetFilesName()
     {
-        var directories = Directory.GetDirectories(_path, "*")
+        var directories = Directory.GetDirectories(_settings.PathToProject!, "*")
             .Where(directory => !directory.ToLower().EndsWith("bin", StringComparison.OrdinalIgnoreCase) &&
                                 !directory.ToLower().EndsWith("obj", StringComparison.OrdinalIgnoreCase) &&
                                 !directory.ToLower().EndsWith("Resources", StringComparison.OrdinalIgnoreCase) &&
@@ -226,4 +254,10 @@ public class Files
 {
     public List<string>? UIFilesName { get; set; } = [];
     public List<string>? BusinessFilesName { get; set; } = [];
+}
+
+public class Settings
+{
+    [JsonProperty("ListingFileName")] public string? ListingFileName { get; set; }
+    [JsonProperty("PathToProject")] public string? PathToProject { get; set; } 
 }
